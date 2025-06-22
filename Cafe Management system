@@ -1,0 +1,208 @@
+import javax.swing.*;
+import java.awt.*;
+import java.io.*;
+import java.text.SimpleDateFormat;
+import java.util.*;
+interface Bills {
+    String getName();
+    int getPrice();s
+}
+abstract class Product implements Bills {
+    private String name;
+    private int price;
+ public Product(String name, int price) {
+        this.name = name;
+        this.price = price;
+    }
+  public String getName() { return name; }
+    public int getPrice() { return price; }
+}
+class MenuItem extends Product {
+    public MenuItem(String name, int price) {
+        super(name, price);
+    }
+    public String toString() {
+        return getName() + " - Rs. " + getPrice();
+    }
+}
+class Order {
+    private ArrayList<Bills> items = new ArrayList<>();
+   public void addItem(Bills item) {
+        items.add(item);
+    }
+ public int getTotal() {
+        int total = 0;
+        for (Bills item : items) {
+            total += item.getPrice();
+        }
+        return total;
+    }
+    public String getSummary(String customerName) {
+        String dateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+        StringBuilder summary = new StringBuilder();
+        summary.append("Customer Name: ").append(customerName).append("\n");
+        summary.append("Date & Time: ").append(dateTime).append("\n");
+        summary.append("Items Ordered:\n");
+  for (Bills item : items) {
+            summary.append("- ").append(item.getName()).append(": Rs. ").append(item.getPrice()).append("\n");
+        }
+   summary.append("Total: Rs. ").append(getTotal());
+        return summary.toString();
+    }
+    public void clear() {
+        items.clear();
+    }
+ public boolean isEmpty() {
+        return items.isEmpty();
+    }
+}
+public class CafeManagementSystem extends JFrame {
+    private ArrayList<MenuItem> menu;
+    private Order order = new Order();
+    private DefaultListModel<MenuItem> listModel = new DefaultListModel<>();
+    private JList<MenuItem> itemList = new JList<>(listModel);
+    private final String MENU_FILE = "menu.txt";
+    private final String BILL_FILE = "bills.txt";
+   public CafeManagementSystem() {
+        setTitle("Cafe Management System");
+        setSize(600, 500);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+ menu = loadMenu();
+        for (MenuItem item : menu) {
+            listModel.addElement(item);
+        }
+  JLabel title = new JLabel("Fast Food Cafe", SwingConstants.CENTER);
+        title.setFont(new Font("Arial", Font.BOLD, 18));
+itemList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        JScrollPane scrollPane = new JScrollPane(itemList);
+  JButton addButton = new JButton("Add to Order");
+        JButton billButton = new JButton("Show Bill");
+        JButton clearButton = new JButton("Clear Order");
+        JButton addMenuButton = new JButton("Add New Item");
+        JButton viewHistoryButton = new JButton("View Bill History");   addButton.addActionListener(e -> {
+            for (MenuItem item : itemList.getSelectedValuesList()) {
+                order.addItem(item);
+            }
+            JOptionPane.showMessageDialog(this, "Items added to order.");
+        });
+    billButton.addActionListener(e -> {
+            if (order.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No items in the order.");
+                return;
+            }
+            String name = JOptionPane.showInputDialog(this, "Enter customer name:");
+            if (name == null || name.trim().isEmpty()) return;
+  String summary = order.getSummary(name);
+            saveBill(summary);
+            JOptionPane.showMessageDialog(this, summary, "Your Bill", JOptionPane.INFORMATION_MESSAGE);
+            order.clear();
+        });
+  clearButton.addActionListener(e -> {
+            order.clear();
+            JOptionPane.showMessageDialog(this, "Order cleared.");
+        });
+  addMenuButton.addActionListener(e -> {
+            String name = JOptionPane.showInputDialog(this, "Enter new item name:");
+            String priceStr = JOptionPane.showInputDialog(this, "Enter price:");
+            try {
+                int price = Integer.parseInt(priceStr);
+                MenuItem newItem = new MenuItem(name, price);
+                menu.add(newItem);
+                listModel.addElement(newItem);
+                saveMenu();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Invalid input.");
+            }
+        });
+ viewHistoryButton.addActionListener(e -> {
+            String history = loadHistory();
+            JTextArea area = new JTextArea(history);
+            area.setEditable(false);
+            JScrollPane scroll = new JScrollPane(area);
+            scroll.setPreferredSize(new Dimension(500, 400));
+            JOptionPane.showMessageDialog(this, scroll, "Bill History", JOptionPane.INFORMATION_MESSAGE);
+        });
+   JPanel panel = new JPanel(new GridLayout(3, 2, 10, 10));
+        panel.add(addButton);
+        panel.add(billButton);
+        panel.add(clearButton);
+        panel.add(addMenuButton);
+        panel.add(viewHistoryButton);
+ add(title, BorderLayout.NORTH);
+        add(scrollPane, BorderLayout.CENTER);
+        add(panel, BorderLayout.SOUTH);
+
+        setVisible(true);
+    }
+ private ArrayList<MenuItem> loadMenu() {
+        ArrayList<MenuItem> menu = new ArrayList<>(); menu.add(new MenuItem("Biryani", 300));
+        menu.add(new MenuItem("Coffee", 120));
+        menu.add(new MenuItem("Sandwich", 150));
+        menu.add(new MenuItem("Kabab", 250));
+        menu.add(new MenuItem("Burger", 200));
+        menu.add(new MenuItem("Pizza", 400));
+        menu.add(new MenuItem("Fries", 100));
+        menu.add(new MenuItem("Cola", 80));
+        menu.add(new MenuItem("Milkshake", 150));
+        menu.add(new MenuItem("Ice Cream", 90));
+        menu.add(new MenuItem("Mojito", 130));
+  try {
+            File file = new File(MENU_FILE);
+            if (file.exists()) {
+                Scanner sc = new Scanner(file);
+                while (sc.hasNextLine()) {
+                    String line = sc.nextLine();
+                    String[] parts = line.split(",");
+                    if (parts.length == 2) {
+                        String name = parts[0];
+                        int price = Integer.parseInt(parts[1]);
+                        menu.add(new MenuItem(name, price));
+                    }
+                }
+                sc.close();
+            }
+        } catch (Exception e) {
+            System.out.println("Could not load menu from file.");
+        }
+  return menu;
+    }
+  private void saveMenu() {
+        try {
+            PrintWriter writer = new PrintWriter(MENU_FILE);
+            for (MenuItem item : menu) {
+                writer.println(item.getName() + "," + item.getPrice());
+            }
+            writer.close();
+        } catch (Exception e) {
+            System.out.println("Error saving menu.");
+        }
+    }
+   private void saveBill(String summary) {
+        try {
+            FileWriter writer = new FileWriter(BILL_FILE, true);
+            writer.write(summary + "\n-----------------------------\n");
+            writer.close();
+        } catch (Exception e) {
+            System.out.println("Error saving bill.");
+        }
+    }
+   private String loadHistory() {
+        StringBuilder history = new StringBuilder();
+        try {
+            File file = new File(BILL_FILE);
+            Scanner sc = new Scanner(file);
+            while (sc.hasNextLine()) {
+                history.append(sc.nextLine()).append("\n");
+            }
+            sc.close();
+        } catch (Exception e) {
+            history.append("No bill history found.");
+        }
+        return history.toString();
+    }
+  public static void main(String[] args) {
+        new CafeManagementSystem();
+    }
+}
+
